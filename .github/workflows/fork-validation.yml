@@ -1,4 +1,4 @@
-name: Validate Storage duplicate upload fix
+name: Studio snippet unit validation
 
 on:
   push:
@@ -8,101 +8,21 @@ permissions:
   contents: read
 
 concurrency:
-  group: studio-storage-validation
+  group: studio-snippet-unit-validation
   cancel-in-progress: true
 
-env:
-  TZ: UTC
-  NEXT_TELEMETRY_DISABLED: '1'
-
 jobs:
-  checks:
-    name: Checks (${{ matrix.fix }})
+  unit:
+    name: Complete snippet unit suite (one worker)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - fix: storage
-            commit: 4124bc8a6b3f5d250239d659e23acf1094104751
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          ref: ${{ matrix.commit }}
-          fetch-depth: 2
-          persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
-        with:
-          run_install: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run test:prettier
-      - run: pnpm exec prettier --check e2e/studio/features/storage.spec.ts e2e/studio/utils/storage-helpers.ts
-        env:
-          SORT_IMPORTS: 'false'
-      - run: pnpm run test:case-hazards
-      - run: pnpm run typecheck
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-          GITHUB_TOKEN: ${{ github.token }}
-      - run: pnpm run lint
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-      - run: pnpm --filter studio run lint:ratchet
-      - run: pnpm knip --workspace apps/studio --no-progress
-      - name: Check spelling in changed files
-        run: |
-          go install github.com/golangci/misspell/cmd/misspell@v0.8.0
-          git diff-tree --no-commit-id --name-only -r -z HEAD | xargs -0 "$(go env GOPATH)/bin/misspell" -error -locale US
-      - name: Studio unit tests with coverage
-        run: pnpm --filter studio run test:ci
-        env:
-          NODE_OPTIONS: --max-old-space-size=3072
-
-  docker:
-    name: Docker (${{ matrix.fix }})
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - fix: storage
-            commit: 4124bc8a6b3f5d250239d659e23acf1094104751
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          ref: ${{ matrix.commit }}
-          persist-credentials: false
-      - name: Next production image
-        run: docker build . -f apps/studio/Dockerfile --target production -t supabase-studio:validation-next --build-arg NEXT_PUBLIC_STUDIO_AUTH_MODE=supabase --no-cache
-      - name: TanStack production image
-        run: docker build . -f apps/studio/Dockerfile --target production -t supabase-studio:validation-tanstack --build-arg NEXT_PUBLIC_STUDIO_AUTH_MODE=supabase --build-arg STUDIO_FRAMEWORK=tanstack
-
-  e2e:
-    name: E2E (${{ matrix.fix }}, ${{ matrix.framework }})
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - fix: storage
-            commit: 4124bc8a6b3f5d250239d659e23acf1094104751
-            framework: next
-          - fix: storage
-            commit: 4124bc8a6b3f5d250239d659e23acf1094104751
-            framework: tanstack
     env:
-      STUDIO_FRAMEWORK: ${{ matrix.framework }}
+      TZ: UTC
+      NODE_OPTIONS: --max-old-space-size=3072
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          ref: ${{ matrix.commit }}
+          ref: 4cce9a9d862fd0e5fd64cd1b61d0def5dc05fbd8
           persist-credentials: false
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
         with:
@@ -112,16 +32,5 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -C e2e/studio exec playwright install chromium --with-deps --only-shell
-      - name: Start disposable Supabase stack
-        run: SKIP_ASSET_UPLOAD=1 pnpm run e2e:setup:cli
-      - name: Build Studio
-        run: SKIP_ASSET_UPLOAD=1 NODE_ENV=test MODE=test NODE_OPTIONS=--max-old-space-size=4096 pnpm run build:studio
-      - name: Run the complete self-hosted browser suite
-        run: pnpm e2e
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: playwright-${{ matrix.fix }}-${{ matrix.framework }}
-          path: e2e/studio/blob-report
-          retention-days: 7
+      - name: Run all Studio unit tests with coverage
+        run: pnpm --filter studio run test:ci --maxWorkers=1
