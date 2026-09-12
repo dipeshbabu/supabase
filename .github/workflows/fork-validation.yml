@@ -1,4 +1,4 @@
-name: Studio snippet unit validation
+name: Studio storage unit validation
 
 on:
   push:
@@ -8,12 +8,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: studio-snippet-unit-validation
+  group: studio-storage-unit-validation
   cancel-in-progress: true
 
 jobs:
   unit:
-    name: Complete snippet unit suite (one worker)
+    name: Complete storage unit suite (one worker)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          ref: 4cce9a9d862fd0e5fd64cd1b61d0def5dc05fbd8
+          ref: 4124bc8a6b3f5d250239d659e23acf1094104751
           persist-credentials: false
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
         with:
