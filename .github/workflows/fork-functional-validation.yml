@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - fix: snippet-updates
-            commit: 6e4fa746f42fb42d8b223316d15160a6e9d1d138
+            commit: a1cbfc06b153a295b23c73e689d8cce38273c040
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -67,11 +67,11 @@ jobs:
       matrix:
         include:
           - fix: snippet-updates
-            commit: 6e4fa746f42fb42d8b223316d15160a6e9d1d138
+            commit: a1cbfc06b153a295b23c73e689d8cce38273c040
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             shard: 1
           - fix: snippet-updates
-            commit: 6e4fa746f42fb42d8b223316d15160a6e9d1d138
+            commit: a1cbfc06b153a295b23c73e689d8cce38273c040
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             shard: 2
     env:
@@ -112,7 +112,7 @@ jobs:
       matrix:
         include:
           - fix: snippet-updates
-            commit: 6e4fa746f42fb42d8b223316d15160a6e9d1d138
+            commit: a1cbfc06b153a295b23c73e689d8cce38273c040
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -133,22 +133,22 @@ jobs:
       matrix:
         include:
           - fix: snippet-updates
-            commit: 6e4fa746f42fb42d8b223316d15160a6e9d1d138
+            commit: a1cbfc06b153a295b23c73e689d8cce38273c040
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: next
             shard: 1
           - fix: snippet-updates
-            commit: 6e4fa746f42fb42d8b223316d15160a6e9d1d138
+            commit: a1cbfc06b153a295b23c73e689d8cce38273c040
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: next
             shard: 2
           - fix: snippet-updates
-            commit: 6e4fa746f42fb42d8b223316d15160a6e9d1d138
+            commit: a1cbfc06b153a295b23c73e689d8cce38273c040
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: tanstack
             shard: 1
           - fix: snippet-updates
-            commit: 6e4fa746f42fb42d8b223316d15160a6e9d1d138
+            commit: a1cbfc06b153a295b23c73e689d8cce38273c040
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: tanstack
             shard: 2
