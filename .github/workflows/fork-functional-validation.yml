@@ -20,8 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - fix: snippet-updates
-            commit: abfe0d54c953c09526ba856161ea23c6d7ee625a
+          - fix: csv-copy
+            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -66,12 +66,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - fix: snippet-updates
-            commit: abfe0d54c953c09526ba856161ea23c6d7ee625a
+          - fix: csv-copy
+            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             shard: 1
-          - fix: snippet-updates
-            commit: abfe0d54c953c09526ba856161ea23c6d7ee625a
+          - fix: csv-copy
+            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             shard: 2
     env:
@@ -108,8 +108,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - fix: snippet-updates
-            commit: abfe0d54c953c09526ba856161ea23c6d7ee625a
+          - fix: csv-copy
+            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -129,23 +129,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - fix: snippet-updates
-            commit: abfe0d54c953c09526ba856161ea23c6d7ee625a
+          - fix: csv-copy
+            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: next
             shard: 1
-          - fix: snippet-updates
-            commit: abfe0d54c953c09526ba856161ea23c6d7ee625a
+          - fix: csv-copy
+            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: next
             shard: 2
-          - fix: snippet-updates
-            commit: abfe0d54c953c09526ba856161ea23c6d7ee625a
+          - fix: csv-copy
+            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: tanstack
             shard: 1
-          - fix: snippet-updates
-            commit: abfe0d54c953c09526ba856161ea23c6d7ee625a
+          - fix: csv-copy
+            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: tanstack
             shard: 2
@@ -170,6 +170,9 @@ jobs:
         run: SKIP_ASSET_UPLOAD=1 pnpm run e2e:setup:cli
       - name: Build Studio
         run: SKIP_ASSET_UPLOAD=1 NODE_ENV=test MODE=test NODE_OPTIONS=--max-old-space-size=4096 pnpm run build:studio
+      - name: Verify the CSV clipboard regression first
+        if: matrix.fix == 'csv-copy' && matrix.shard == 2
+        run: pnpm e2e --grep 'copying rows as CSV'
       - name: Run the complete self-hosted browser suite
         run: PWTEST_SHARD_WEIGHTS=62:38 pnpm e2e --shard=${{ matrix.shard }}/2
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
