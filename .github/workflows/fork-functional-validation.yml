@@ -20,8 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - fix: csv-copy
-            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
+          - fix: snippet-updates
+            commit: f5c59c63d0b64c3cad6b8376b4665b5f7fad9418
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -66,12 +66,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - fix: csv-copy
-            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
+          - fix: snippet-updates
+            commit: f5c59c63d0b64c3cad6b8376b4665b5f7fad9418
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             shard: 1
-          - fix: csv-copy
-            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
+          - fix: snippet-updates
+            commit: f5c59c63d0b64c3cad6b8376b4665b5f7fad9418
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             shard: 2
     env:
@@ -90,6 +90,9 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Verify snippet filesystem regressions first
+        if: matrix.fix == 'snippet-updates' && matrix.shard == 1
+        run: pnpm --filter studio exec vitest run lib/api/snippets.utils.test.ts lib/api/snippets.update.test.ts --maxWorkers=1
       - name: Run unit shard with coverage and standard test timeouts
         run: pnpm --filter studio run test:ci --maxWorkers=1 --shard=${{ matrix.shard }}/2 --reporter=default --reporter=json --outputFile=unit-results.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -108,8 +111,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - fix: csv-copy
-            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
+          - fix: snippet-updates
+            commit: f5c59c63d0b64c3cad6b8376b4665b5f7fad9418
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -129,23 +132,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - fix: csv-copy
-            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
+          - fix: snippet-updates
+            commit: f5c59c63d0b64c3cad6b8376b4665b5f7fad9418
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: next
             shard: 1
-          - fix: csv-copy
-            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
+          - fix: snippet-updates
+            commit: f5c59c63d0b64c3cad6b8376b4665b5f7fad9418
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: next
             shard: 2
-          - fix: csv-copy
-            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
+          - fix: snippet-updates
+            commit: f5c59c63d0b64c3cad6b8376b4665b5f7fad9418
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: tanstack
             shard: 1
-          - fix: csv-copy
-            commit: d2077aa5436a946a827a8f31ace9c5184978ac44
+          - fix: snippet-updates
+            commit: f5c59c63d0b64c3cad6b8376b4665b5f7fad9418
             base: e3c677fc5af311dcdc59b7810f35a64af0893e55
             framework: tanstack
             shard: 2
