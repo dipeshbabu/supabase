@@ -1,0 +1,40 @@
+name: Storage PR static validation
+'on':
+  push:
+    branches:
+    - ci/validate-storage-checks-20260919
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: 10db659bd6570744125236ca5649ae210c420ec5
+        persist-credentials: false
+    - uses: pnpm/action-setup@v4
+      with:
+        run_install: false
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+    - name: Studio typecheck
+      run: pnpm --filter studio run typecheck
+    - name: Storage unit tests
+      run: pnpm --filter studio exec vitest run components/interfaces/Storage/StorageExplorer/StorageExplorer.utils.test.ts
+        --maxWorkers=1
+    - name: Lint changed Studio files
+      run: pnpm --filter studio exec eslint components/interfaces/Storage/StorageExplorer/StorageExplorer.utils.tsx components/interfaces/Storage/StorageExplorer/StorageExplorer.utils.test.ts
+    - name: Format changed files
+      env:
+        SORT_IMPORTS: 'false'
+      run: pnpm exec prettier --check apps/studio/components/interfaces/Storage/StorageExplorer/StorageExplorer.utils.tsx
+        apps/studio/components/interfaces/Storage/StorageExplorer/StorageExplorer.utils.test.ts e2e/studio/features/storage.spec.ts
+        e2e/studio/utils/storage-helpers.ts
