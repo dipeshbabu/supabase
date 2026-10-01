@@ -1,0 +1,277 @@
+name: Validate updated Studio PRs
+permissions:
+  contents: read
+env:
+  TZ: UTC
+  NEXT_TELEMETRY_DISABLED: '1'
+jobs:
+  checks:
+    name: Static checks (${{ matrix.fix }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include: &id001
+        - fix: sql-export
+          commit: 6a71581a9d810c3084a75bfe6a1e5ca94991309e
+          base: be976bec49da3c92d030a526e7916688449a2638
+        - fix: storage
+          commit: b63c85dd410f4093da996e6db2a052618a1eec2c
+          base: be976bec49da3c92d030a526e7916688449a2638
+        - fix: csv-copy
+          commit: 39c2c76ee6b452005870e7b1f3d9893c8a2f7223
+          base: be976bec49da3c92d030a526e7916688449a2638
+        - fix: snippet-updates
+          commit: c7408842ecc1238d31bdd264684d15f0a96be29a
+          base: be976bec49da3c92d030a526e7916688449a2638
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        ref: ${{ matrix.commit }}
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+      with:
+        run_install: false
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+    - run: pnpm run test:prettier
+    - name: Format changed browser tests
+      run: git diff --name-only -z "$BASE_SHA" HEAD -- e2e | xargs -0 -r pnpm exec prettier --check
+      env:
+        SORT_IMPORTS: 'false'
+    - run: pnpm run test:case-hazards
+    - run: pnpm run typecheck
+      env:
+        NODE_OPTIONS: --max-old-space-size=4096
+        GITHUB_TOKEN: ${{ github.token }}
+    - run: pnpm run lint
+      env:
+        NODE_OPTIONS: --max-old-space-size=4096
+    - run: pnpm --filter studio run lint:ratchet
+    - run: pnpm knip --workspace apps/studio --no-progress
+    - name: Check spelling in changed files
+      run: 'go install github.com/golangci/misspell/cmd/misspell@v0.8.0
+
+        git diff --name-only -z "$BASE_SHA" HEAD | xargs -0 "$(go env GOPATH)/bin/misspell" -error -locale US
+
+        '
+    env:
+      BASE_SHA: ${{ matrix.base }}
+  unit:
+    name: Unit coverage (${{ matrix.fix }}, ${{ matrix.shard }}/2)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - fix: sql-export
+          commit: 6a71581a9d810c3084a75bfe6a1e5ca94991309e
+          base: be976bec49da3c92d030a526e7916688449a2638
+          shard: 1
+        - fix: sql-export
+          commit: 6a71581a9d810c3084a75bfe6a1e5ca94991309e
+          base: be976bec49da3c92d030a526e7916688449a2638
+          shard: 2
+        - fix: storage
+          commit: b63c85dd410f4093da996e6db2a052618a1eec2c
+          base: be976bec49da3c92d030a526e7916688449a2638
+          shard: 1
+        - fix: storage
+          commit: b63c85dd410f4093da996e6db2a052618a1eec2c
+          base: be976bec49da3c92d030a526e7916688449a2638
+          shard: 2
+        - fix: csv-copy
+          commit: 39c2c76ee6b452005870e7b1f3d9893c8a2f7223
+          base: be976bec49da3c92d030a526e7916688449a2638
+          shard: 1
+        - fix: csv-copy
+          commit: 39c2c76ee6b452005870e7b1f3d9893c8a2f7223
+          base: be976bec49da3c92d030a526e7916688449a2638
+          shard: 2
+        - fix: snippet-updates
+          commit: c7408842ecc1238d31bdd264684d15f0a96be29a
+          base: be976bec49da3c92d030a526e7916688449a2638
+          shard: 1
+        - fix: snippet-updates
+          commit: c7408842ecc1238d31bdd264684d15f0a96be29a
+          base: be976bec49da3c92d030a526e7916688449a2638
+          shard: 2
+    env:
+      NODE_OPTIONS: --max-old-space-size=3072
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        ref: ${{ matrix.commit }}
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+      with:
+        run_install: false
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+    - name: Verify snippet filesystem regressions first
+      if: matrix.fix == 'snippet-updates' && matrix.shard == 1
+      run: pnpm --filter studio exec vitest run lib/api/snippets.utils.test.ts lib/api/snippets.update.test.ts --maxWorkers=1
+    - name: Run unit shard with coverage and standard test timeouts
+      run: pnpm --filter studio run test:ci --maxWorkers=1 --shard=${{ matrix.shard }}/2 --reporter=default --reporter=json --outputFile=unit-results.json
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: unit-${{ matrix.fix }}-${{ matrix.shard }}
+        path: 'apps/studio/unit-results.json
+
+          apps/studio/coverage/lcov.info'
+        retention-days: 7
+  docker:
+    name: Docker (${{ matrix.fix }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include: *id001
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        ref: ${{ matrix.commit }}
+        persist-credentials: false
+        fetch-depth: 0
+    - name: Next production image
+      run: docker build . -f apps/studio/Dockerfile --target production -t supabase-studio:validation-next --build-arg NEXT_PUBLIC_STUDIO_AUTH_MODE=supabase --no-cache
+    - name: TanStack production image
+      run: docker build . -f apps/studio/Dockerfile --target production -t supabase-studio:validation-tanstack --build-arg NEXT_PUBLIC_STUDIO_AUTH_MODE=supabase --build-arg STUDIO_FRAMEWORK=tanstack
+  e2e:
+    name: E2E (${{ matrix.fix }}, ${{ matrix.framework }}, ${{ matrix.shard }}/2)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - fix: sql-export
+          commit: 6a71581a9d810c3084a75bfe6a1e5ca94991309e
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: next
+          shard: 1
+        - fix: sql-export
+          commit: 6a71581a9d810c3084a75bfe6a1e5ca94991309e
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: next
+          shard: 2
+        - fix: sql-export
+          commit: 6a71581a9d810c3084a75bfe6a1e5ca94991309e
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: tanstack
+          shard: 1
+        - fix: sql-export
+          commit: 6a71581a9d810c3084a75bfe6a1e5ca94991309e
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: tanstack
+          shard: 2
+        - fix: storage
+          commit: b63c85dd410f4093da996e6db2a052618a1eec2c
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: next
+          shard: 1
+        - fix: storage
+          commit: b63c85dd410f4093da996e6db2a052618a1eec2c
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: next
+          shard: 2
+        - fix: storage
+          commit: b63c85dd410f4093da996e6db2a052618a1eec2c
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: tanstack
+          shard: 1
+        - fix: storage
+          commit: b63c85dd410f4093da996e6db2a052618a1eec2c
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: tanstack
+          shard: 2
+        - fix: csv-copy
+          commit: 39c2c76ee6b452005870e7b1f3d9893c8a2f7223
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: next
+          shard: 1
+        - fix: csv-copy
+          commit: 39c2c76ee6b452005870e7b1f3d9893c8a2f7223
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: next
+          shard: 2
+        - fix: csv-copy
+          commit: 39c2c76ee6b452005870e7b1f3d9893c8a2f7223
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: tanstack
+          shard: 1
+        - fix: csv-copy
+          commit: 39c2c76ee6b452005870e7b1f3d9893c8a2f7223
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: tanstack
+          shard: 2
+        - fix: snippet-updates
+          commit: c7408842ecc1238d31bdd264684d15f0a96be29a
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: next
+          shard: 1
+        - fix: snippet-updates
+          commit: c7408842ecc1238d31bdd264684d15f0a96be29a
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: next
+          shard: 2
+        - fix: snippet-updates
+          commit: c7408842ecc1238d31bdd264684d15f0a96be29a
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: tanstack
+          shard: 1
+        - fix: snippet-updates
+          commit: c7408842ecc1238d31bdd264684d15f0a96be29a
+          base: be976bec49da3c92d030a526e7916688449a2638
+          framework: tanstack
+          shard: 2
+    env:
+      STUDIO_FRAMEWORK: ${{ matrix.framework }}
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        ref: ${{ matrix.commit }}
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+      with:
+        run_install: false
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+    - run: pnpm -C e2e/studio exec playwright install chromium --with-deps --only-shell
+    - name: Start disposable Supabase stack
+      run: SKIP_ASSET_UPLOAD=1 pnpm run e2e:setup:cli
+    - name: Build Studio
+      run: SKIP_ASSET_UPLOAD=1 NODE_ENV=test MODE=test NODE_OPTIONS=--max-old-space-size=4096 pnpm run build:studio
+    - name: Verify the CSV clipboard regression first
+      if: matrix.fix == 'csv-copy' && matrix.shard == 2
+      run: pnpm e2e --grep 'copying rows as CSV'
+    - name: Run the complete self-hosted browser suite
+      run: PWTEST_SHARD_WEIGHTS=62:38 pnpm e2e --shard=${{ matrix.shard }}/2
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: playwright-${{ matrix.fix }}-${{ matrix.framework }}-${{ matrix.shard }}
+        path: 'e2e/studio/blob-report
+
+          e2e/studio/test-results'
+        retention-days: 7
+'on':
+  push:
+    branches:
+    - ci/review-updates-20261001
